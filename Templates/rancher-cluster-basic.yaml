@@ -1,0 +1,50 @@
+nodes:
+- address: HOSTNAME_REPLACE
+  user: kubernetes_user
+  role: [ "controlplane", "etcd", "worker" ]
+addon_job_timeout: 120
+authentication:
+  strategy: x509
+ignore_docker_version: true
+# 
+# # Currently only nginx ingress provider is supported.
+# # To disable ingress controller, set `provider: none`
+# # To enable ingress on specific nodes, use the node_selector, eg:
+#    provider: nginx
+#    node_selector:
+#      app: ingress
+# 
+ingress:
+  provider: nginx
+  options:
+    use-forwarded-headers: 'true'
+    enable-underscores-in-headers: 'true'
+kubernetes_version: "kubernetes_version_variable"
+enable_network_policy: false
+default_pod_security_policy_template_id: "unrestricted"
+services:
+  etcd:
+    uid: etcd_user_var
+    gid: etcd_group_var
+  kube-api:
+    pod_security_policy: false
+    secrets_encryption_config:
+      enabled: true
+    audit_log:
+      enabled: true
+    admission_configuration:
+    event_rate_limit:
+      enabled: true
+  kube-controller:
+    extra_args:
+      feature-gates: "RotateKubeletServerCertificate=true"
+  kubelet:
+    generate_serving_certificate: true
+    extra_args:
+      feature-gates: "RotateKubeletServerCertificate=true"
+      protect-kernel-defaults: "true"
+      tls-cipher-suites: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256"
+    extra_binds: []
+    extra_env: []
+    fail_swap_on: false
+    generate_serving_certificate: true

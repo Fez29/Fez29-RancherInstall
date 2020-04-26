@@ -1,0 +1,60 @@
+# Ensure PODS have access to the internet, UFW: DEFAULT_FORWARD_POLICY="ACCEPT"
+# ${DOMAIN_SUFFIX} could be .github.com for example, Ensure this is in place
+# Useful Resources:
+    # https://toolbox.kurio.co.id/securing-your-website-with-oauth2-in-nginx-ingress-controller-c84984eae7fa
+    # https://www.digitalocean.com/community/tutorials/how-to-protect-private-kubernetes-services-behind-a-github-login-with-oauth2_proxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: oauth2-proxy
+  name: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      containers:
+      - args:
+        - --provider=github
+        - --email-domain=*
+        - --upstream=file:///dev/null
+        - --http-address=0.0.0.0:4180
+        - --client-id=${CLIENT-ID}
+        - --client-secret=${CLIENT-SECRET}
+        - --cookie-domain=.${DOMAIN_SUFFIX}
+        - --cookie-refresh=1h
+        ## Generate COOKIE-SECRET with: python -c 'import os,base64; print base64.b64encode(os.urandom(16))'
+        - --cookie-secret=COOKIE-SECRET
+        - --whitelist-domain=.${DOMAIN_SUFFIX}
+        - --pass-authorization-header=true
+        - --set-xauthrequest=true
+        - --skip-provider-button=true
+        - --pass-basic-auth=true
+        - --skip-jwt-bearer-tokens=true
+        image: quay.io/pusher/oauth2_proxy:latest
+        name: oauth2-proxy
+        ports:
+        - containerPort: 4180
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: oauth2-proxy
+  name: oauth2-proxy
+spec:
+  ports:
+  - name: http
+    port: 4180
+    protocol: TCP
+    targetPort: 4180
+  selector:
+    app: oauth2-proxy

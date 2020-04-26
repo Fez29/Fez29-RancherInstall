@@ -1,0 +1,35 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    field.cattle.io/creatorId: user-m5vjb
+    field.cattle.io/ingressState: '{"":"azure-ad-demo:","ZG90bmV0Y29yZXNhbXBsZS9henVyZS1hZC1kZW1vLzAzcm5iLWRldnJoZWwwMi56YS5kcy5uYXNwZXJzLmNvbS8vYXBpMigvfCQpKC4qKS84MDgw":""}'
+    field.cattle.io/publicEndpoints: '[{"addresses":["10.100.29.134"],"port":443,"protocol":"HTTPS","serviceName":"azure-ad-demo:dotnetcoresample-nodeport","ingressName":"azure-ad-demo:dotnetcoresample","hostname":"$HOST","path":"/api2(/|$)(.*)","allNodes":true}]'
+    nginx.ingress.kubernetes.io/auth-signin: https://$host/oauth2/start?rd=$escaped_request_uri
+    nginx.ingress.kubernetes.io/auth-url: https://$host/oauth2/auth
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  creationTimestamp: "2020-04-20T04:52:16Z"
+  generation: 5
+  labels:
+    cattle.io/creator: norman
+  name: dotnetcoresample
+  namespace: azure-ad-demo
+  resourceVersion: "14758911"
+  selfLink: /apis/extensions/v1beta1/namespaces/azure-ad-demo/ingresses/dotnetcoresample
+  uid: c8e1e6da-bfe7-4984-8673-f87913227406
+spec:
+  rules:
+  - host: ${HOST}
+    http:
+      paths:
+      - backend:
+          serviceName: dotnetcoresample-nodeport
+          servicePort: 8080
+        path: /api2(/|$)(.*)
+  tls:
+  - hosts:
+    - ${HOST}
+status:
+  loadBalancer:
+    ingress:
+    - ip: 10.100.29.134

@@ -1,0 +1,51 @@
+---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: oauth2-proxy
+      name: oauth2-proxy
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: oauth2-proxy
+      template:
+        metadata:
+          labels:
+            app: oauth2-proxy
+        spec:
+          containers:
+          - args:
+            - --provider=azure
+            - --azure-tenant=AZURE-TENANT-ID
+            - --email-domain=*
+            - --upstream=file:///dev/null
+            - --http-address=0.0.0.0:4180
+            - --client-id=AZURE-CLIENT-ID
+            - --client-secret=AZURE-CLIENT-SECRET
+            - --cookie-domain=.${DOMAIN_SUFFIX}
+            - --cookie-refresh=1h
+            ## Generate COOKIE-SECRET with: python -c 'import os,base64; print base64.b64encode(os.urandom(16))'
+            - --cookie-secret=COOKIE-SECRET
+            - --whitelist-domain=.${DOMAIN_SUFFIX}
+            image: quay.io/pusher/oauth2_proxy:latest
+            name: oauth2-proxy
+            ports:
+            - containerPort: 4180
+              protocol: TCP
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: oauth2-proxy
+      name: oauth2-proxy
+    spec:
+      ports:
+      - name: http
+        port: 4180
+        protocol: TCP
+        targetPort: 4180
+      selector:
+        app: oauth2-proxy

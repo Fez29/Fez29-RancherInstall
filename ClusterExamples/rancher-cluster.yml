@@ -1,0 +1,229 @@
+nodes:
+- address: 18.191.190.205
+  user: ubuntu
+  role: [ "controlplane", "etcd", "worker" ]
+- address: 18.191.190.203
+  user: ubuntu
+  role: [ "controlplane", "etcd", "worker" ]
+- address: 18.191.190.10
+  user: ubuntu
+  role: [ "controlplane", "etcd", "worker" ]
+env:
+  - name: http_proxy
+    value: "http://${DOMAIN}\\${USERNAME}:${PASSWORD}@${PROXY_IP}:8080/"
+  - name: https_proxy
+    value: "http://${DOMAIN}\\${USERNAME}:${PASSWORD}@${PROXY_IP}:8080/"
+  - name: HTTP_PROXY
+    value: "http://${DOMAIN}\\${USERNAME}:${PASSWORD}@${PROXY_IP}:8080/"
+  - name: HTTPS_PROXY
+    value: "http://${DOMAIN}\\${USERNAME}:${PASSWORD}@${PROXY_IP}:8080/"
+  - name: NO_PROXY
+    value: "${INPUT}"
+  - name: no_proxy
+    value: "${INPUT}"
+addon_job_timeout: 30
+cluster_name: $CLUSTER_NAMES
+authentication:
+  strategy: x509
+ignore_docker_version: true
+# 
+# # Currently only nginx ingress provider is supported.
+# # To disable ingress controller, set `provider: none`
+# # To enable ingress on specific nodes, use the node_selector, eg:
+#    provider: nginx
+#    node_selector:
+#      app: ingress
+# 
+ingress:
+  provider: nginx
+  options:
+    use-forwarded-headers: 'true'
+kubernetes_version: v1.16.6-rancher1-2
+monitoring:
+  provider: metrics-server
+# 
+#   If you are using calico on AWS
+# 
+#    network:
+#      plugin: calico
+#      calico_network_provider:
+#        cloud_provider: aws
+# 
+# # To specify flannel interface
+# 
+#    network:
+#      plugin: flannel
+#      flannel_network_provider:
+#      iface: eth1
+# 
+# # To specify flannel interface for canal plugin
+# 
+#    network:
+#      plugin: canal
+#      canal_network_provider:
+#        iface: eth1
+# 
+network:
+  options:
+    flannel_backend_type: vxlan
+  plugin: canal
+# 
+#    services:
+#      kube-api:
+#        service_cluster_ip_range: 10.43.0.0/16
+#      kube-controller:
+#        cluster_cidr: 10.42.0.0/16
+#        service_cluster_ip_range: 10.43.0.0/16
+#      kubelet:
+#        cluster_domain: cluster.local
+#        cluster_dns_server: 10.43.0.10
+# 
+services:
+  etcd:
+    backup_config:
+      enabled: true
+      interval_hours: 12
+      retention: 6
+      safe_timestamp: false
+    creation: 12h
+    extra_args:
+      election-timeout: 5000
+      heartbeat-interval: 500
+    gid: ${ETCD_GID}
+    retention: 72h
+    snapshot: false
+    uid: ${ETCD_UID}
+  kube_api:
+    always_pull_images: true
+    pod_security_policy: true
+    service_node_port_range: 30000-32767
+    event_rate_limit:
+      enabled: true
+    audit_log:
+      enabled: true
+    secrets_encryption_config:
+      enabled: true
+    extra_args:
+      anonymous-auth: "false"
+      enable-admission-plugins: "ServiceAccount,NamespaceLifecycle,LimitRanger,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,AlwaysPullImages,DenyEscalatingExec,NodeRestriction,EventRateLimit,PodSecurityPolicy"
+      profiling: "false"
+      service-account-lookup: "true"
+      tls-cipher-suites: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256"
+    extra_binds:
+      - "/opt/kubernetes:/opt/kubernetes"
+  kubelet:
+    generate_serving_certificate: true
+    extra_args:
+      feature-gates: "RotateKubeletServerCertificate=true"
+      protect-kernel-defaults: "true"
+      tls-cipher-suites: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256"
+  kube-controller:
+    extra_args:
+      profiling: "false"
+      address: "127.0.0.1"
+      terminated-pod-gc-threshold: "1000"
+      feature-gates: "RotateKubeletServerCertificate=true"
+  scheduler:
+    extra_args:
+      profiling: "false"
+      address: "127.0.0.1"
+ssh_agent_auth: false
+addons: |
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    name: default-psp-role
+    namespace: ingress-nginx
+  rules:
+  - apiGroups:
+    - extensions
+    resourceNames:
+    - default-psp
+    resources:
+    - podsecuritypolicies
+    verbs:
+    - use
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: default-psp-rolebinding
+    namespace: ingress-nginx
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: default-psp-role
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:serviceaccounts
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:authenticated
+  ---
+  apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: cattle-system
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    name: default-psp-role
+    namespace: cattle-system
+  rules:
+  - apiGroups:
+    - extensions
+    resourceNames:
+    - default-psp
+    resources:
+    - podsecuritypolicies
+    verbs:
+    - use
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: default-psp-rolebinding
+    namespace: cattle-system
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: default-psp-role
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:serviceaccounts
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:authenticated
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    name: restricted-clusterrole
+  rules:
+  - apiGroups:
+    - extensions
+    resourceNames:
+    - restricted-psp
+    resources:
+    - podsecuritypolicies
+    verbs:
+    - use
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    name: restricted-clusterrolebinding
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: restricted-clusterrole
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:serviceaccounts
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:authenticated
